@@ -1,0 +1,46 @@
+# Whole stack:      docker compose up --build        -> UI on http://localhost:8081
+# Database only:    docker compose up -d mysql       -> then run the backend from your IDE / mvn
+#
+# Change APP_JWT_SECRET (32+ characters) and set APP_SEED_DEMO_USERS=false for anything real.
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: order-to-audit-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: order_to_audit
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    container_name: order-to-audit-api
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/order_to_audit?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata
+      DB_USER: root
+      DB_PASSWORD: root
+      APP_JWT_SECRET: change-me-to-a-long-random-secret-0123456789
+      APP_SEED_DEMO_USERS: "true"
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    container_name: order-to-audit-ui
+    depends_on:
+      - backend
+    ports:
+      - "8081:80"
+
+volumes:
+  mysql_data:
